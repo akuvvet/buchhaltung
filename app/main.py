@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, send_file, abort, redirect, url_for
+from flask import Flask, render_template, request, send_file, abort, redirect, url_for, session
 from io import BytesIO
 from datetime import datetime
 import os
+from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.processors.amazon import process_amazon_csv
 from app.processors.ebay import process_ebay_csv
@@ -16,6 +18,23 @@ from app.processors.apetito_web import process_apetito_excel
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    # Session Secret (für Login). In PROD per ENV setzen.
+    app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-prod")
+
+    # Einfache Auth: fester Benutzer und gehashter Passwort-String
+    ALLOWED_EMAIL = os.environ.get("OKAYTOOL_USER", "info@okaycomputer.de").lower()
+    # Hinweis: Im Produktivbetrieb OKAYTOOL_PASSWORD_HASH als ENV setzen und
+    # den Klartext nicht im Code hinterlegen.
+    DEFAULT_HASH = generate_password_hash("OKAY1993!")  # fallback
+    PASSWORD_HASH = os.environ.get("OKAYTOOL_PASSWORD_HASH", DEFAULT_HASH)
+
+    def login_required(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if not session.get("user_email"):
+                return redirect(url_for("login", next=request.path))
+            return fn(*args, **kwargs)
+        return wrapper
 
     def _last_month_folder() -> str:
         # YYYYMM des Vormonats, z.B. 202510 für Oktober 2025 wenn aktueller Monat Nov 2025 ist
@@ -53,23 +72,48 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
+        if not session.get("user_email"):
+            return redirect(url_for("login"))
         return redirect(url_for("transaktion_page"))
 
+    @app.get("/login")
+    def login():
+        return render_template("login.html", error=None)
+
+    @app.post("/login")
+    def login_post():
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        if email != ALLOWED_EMAIL or not check_password_hash(PASSWORD_HASH, password):
+            return render_template("login.html", error="Ungültige Zugangsdaten.")
+        session["user_email"] = email
+        target = request.args.get("next") or url_for("transaktion_page")
+        return redirect(target)
+
+    @app.get("/logout")
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
+
     @app.get("/transaktion")
+    @login_required
     def transaktion_page():
         return render_template("transaktion.html")
 
     @app.get("/mention")
+    @login_required
     def mention_page():
         return render_template("mention.html")
 
     @app.get("/telematik")
+    @login_required
     def telematik_page():
         return render_template("telematik.html")
 
     # RoutenCalc entfernt
 
     @app.post("/telematik/process")
+    @login_required
     def telematik_process():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -107,6 +151,7 @@ def create_app() -> Flask:
         )
 
     @app.post("/process/amazon")
+    @login_required
     def process_amazon():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -119,6 +164,7 @@ def create_app() -> Flask:
         return _send_result(result_bytes, suggested_filename, encoding_hint="utf-8")
 
     @app.post("/process/ebay")
+    @login_required
     def process_ebay():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -131,6 +177,7 @@ def create_app() -> Flask:
         return _send_result(result_bytes, suggested_filename, encoding_hint="utf-8")
 
     @app.post("/process/kaufland")
+    @login_required
     def process_kaufland():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -143,6 +190,7 @@ def create_app() -> Flask:
         return _send_result(result_bytes, suggested_filename, encoding_hint="utf-8")
 
     @app.post("/process/mention-ausgang")
+    @login_required
     def process_mention_ausgang():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -155,6 +203,7 @@ def create_app() -> Flask:
         return _send_result(result_bytes, suggested_filename, encoding_hint="utf-8")
 
     @app.post("/process/mention-eingang")
+    @login_required
     def process_mention_eingang():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -167,6 +216,7 @@ def create_app() -> Flask:
         return _send_result(result_bytes, suggested_filename, encoding_hint="utf-8")
 
     @app.post("/process/sale-ausgang")
+    @login_required
     def process_sale_ausgang():
         if "file" not in request.files:
             abort(400, "Keine Datei hochgeladen.")
@@ -181,6 +231,7 @@ def create_app() -> Flask:
 
     # Mention: Shopdateien erzeugen (Excel + Kosatec Bestand) -> ZIP
     @app.post("/mention/shop-files")
+    @login_required
     def mention_shop_files():
         excel = request.files.get("excel")
         bestand = request.files.get("bestand")
@@ -191,6 +242,7 @@ def create_app() -> Flask:
 
     # Mention: Bilder zu FTP hochladen und shopimage CSV zurückgeben
     @app.post("/mention/upload-images")
+    @login_required
     def mention_upload_images():
         artikelnummer = request.form.get("artikelnummer", "").strip()
         if not artikelnummer:
