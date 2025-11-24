@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, send_file, abort, redirect, url_for, session
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
+from time import time
 
 from app.processors.amazon import process_amazon_csv
 from app.processors.ebay import process_ebay_csv
@@ -20,6 +21,10 @@ def create_app() -> Flask:
     app = Flask(__name__)
     # Session Secret (für Login). In PROD per ENV setzen.
     app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-prod")
+    # 30 Minuten Inaktivität
+    app.permanent_session_lifetime = timedelta(
+        seconds=int(os.environ.get("SESSION_IDLE_TIMEOUT_SECONDS", "1800"))
+    )
 
     # Einfache Auth: fester Benutzer und gehashter Passwort-String
     ALLOWED_EMAIL = os.environ.get("OKAYTOOL_USER", "info@okaycomputer.de").lower()
@@ -35,6 +40,17 @@ def create_app() -> Flask:
                 return redirect(url_for("login", next=request.path))
             return fn(*args, **kwargs)
         return wrapper
+    @app.before_request
+    def _session_timeout_guard():
+        if not session.get("user_email"):
+            return
+        last_seen = session.get("last_seen")
+        now = int(time())
+        timeout_seconds = int(os.environ.get("SESSION_IDLE_TIMEOUT_SECONDS", "1800"))
+        if last_seen and now - int(last_seen) > timeout_seconds:
+            session.clear()
+            return redirect(url_for("login", expired=1))
+        session["last_seen"] = now
 
     def _last_month_folder() -> str:
         # YYYYMM des Vormonats, z.B. 202510 für Oktober 2025 wenn aktueller Monat Nov 2025 ist
@@ -78,7 +94,8 @@ def create_app() -> Flask:
 
     @app.get("/login")
     def login():
-        return render_template("login.html", error=None)
+        msg = "Sitzung abgelaufen. Bitte erneut anmelden." if request.args.get("expired") else None
+        return render_template("login.html", error=msg)
 
     @app.post("/login")
     def login_post():
@@ -87,6 +104,8 @@ def create_app() -> Flask:
         if email != ALLOWED_EMAIL or not check_password_hash(PASSWORD_HASH, password):
             return render_template("login.html", error="Ungültige Zugangsdaten.")
         session["user_email"] = email
+        session["last_seen"] = int(time())
+        session.permanent = True
         target = request.args.get("next") or url_for("transaktion_page")
         return redirect(target)
 
