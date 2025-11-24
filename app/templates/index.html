@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datenverarbeitung (Web)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;line-height:1.45;margin:1.5rem;background:#f7f7fb;color:#1b1b1f}
+    h1{font-size:1.4rem;margin-bottom:.8rem}
+    .layout{display:grid;grid-template-columns:220px 1fr;gap:1rem}
+    .sidebar{background:white;border:1px solid #e6e6ef;border-radius:10px;padding:.75rem;height:calc(100vh - 3rem);position:sticky;top:1.5rem}
+    .nav-title{font-size:.9rem;color:#666;margin:0 0 .5rem}
+    .nav{display:flex;flex-direction:column;gap:.25rem}
+    .nav a{display:block;text-decoration:none;color:#1b1b1f;padding:.5rem .6rem;border-radius:8px;border:1px solid transparent;font-size:.95rem}
+    .nav a:hover{background:#f3f6ff;border-color:#e1e7ff}
+    .nav a.is-active{background:#f0f6ff;border-color:#cfe1ff;color:#0b63c7;box-shadow:0 0 0 2px rgba(59,130,246,.1) inset}
+    .content{min-width:0}
+    .grid{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .grid-1col{display:grid;gap:.75rem;grid-template-columns:minmax(260px, 720px)}
+    .card{background:white;border:1px solid #e6e6ef;border-radius:10px;padding:.75rem;transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease}
+    .card h2{font-size:1rem;margin:0 0 .4rem}
+    .card p{font-size:.9rem;color:#555;margin:.2rem 0 .6rem}
+    .card:hover{border-color:#cfd8ff}
+    .card:focus-within,
+    .card.is-active{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(59,130,246,.15);background:#f8fbff}
+    form{display:flex;flex-direction:column;gap:.4rem}
+    input[type=file]{padding:.4rem;border:1px solid #cfcfe6;border-radius:7px}
+    button{background:#3b82f6;color:white;border:none;padding:.5rem .8rem;border-radius:7px;cursor:pointer;font-size:.9rem}
+    button:hover{background:#2563eb}
+    footer{margin-top:2rem;color:#666;font-size:.9rem}
+    code{background:#f0f0f6;padding:.1rem .3rem;border-radius:4px}
+    .suggest{margin-top:.4rem}
+    .suggest code{cursor:pointer; user-select:all}
+    .suggest code[data-copied="1"]::after{content:" kopiert"; color:#16a34a; font-weight:600; margin-left:.25rem}
+    .suggest .copy-suggest{margin-left:.5rem; padding:.25rem .5rem; font-size:.8rem; background:#10b981}
+    .suggest .copy-suggest[disabled]{opacity:.55; cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="nav-title">Menü</div>
+      <nav class="nav">
+        <a href="/transaktion" class="is-active">Transaktion</a>
+        <a href="/mention">Mention</a>
+        <a href="/telematik">Telematik</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section id="transaktion" aria-labelledby="transaktion-title">
+        <h1 id="transaktion-title">Transaktiondateien formatieren</h1>
+        <p>Laden Sie die Quelldatei hoch und starten Sie die Verarbeitung. Das Ergebnis wird direkt als Download bereitgestellt.</p>
+        <div class="grid">
+    <div class="card">
+      <h2>Amazon-Transaction-CSV</h2>
+      <form action="/process/amazon" method="post" enctype="multipart/form-data" data-required="amazon">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>eBay-Transaction-CSV</h2>
+      <form action="/process/ebay" method="post" enctype="multipart/form-data" data-required="ebay">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>Kaufland-Transaction-CSV</h2>
+      <form action="/process/kaufland" method="post" enctype="multipart/form-data" data-required="kaufland">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>Mention Ausgangsrechnungen (Excel)</h2>
+      <form action="/process/mention-ausgang" method="post" enctype="multipart/form-data" data-required="mention">
+        <input type="file" name="file" accept=".xls,.xlsx" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>Mention Eingangsrechnungen (Excel)</h2>
+      <form action="/process/mention-eingang" method="post" enctype="multipart/form-data" data-required="mention">
+        <input type="file" name="file" accept=".xls,.xlsx" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+
+    <div class="card">
+      <h2>Sale Ausgangsrechnungen</h2>
+      <form action="/process/sale-ausgang" method="post" enctype="multipart/form-data" data-required="sale">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit">Verarbeiten & Herunterladen</button>
+      </form>
+      <p class="suggest">Speicherort-Vorschlag: <code class="suggest-target"></code><button type="button" class="copy-suggest" disabled>Kopieren</button></p>
+      <p class="error"></p>
+    </div>
+        </div>
+      </section>
+      <footer>
+        <p>Tipp: Für Produktion auf Windows können Sie die App mit <code>waitress</code> hosten (siehe README).</p>
+        <p>Hinweis: Im Windows „Speichern unter“-Dialog einfach <strong>Strg+V</strong> drücken und danach <strong>Enter</strong>, um direkt zum kopierten Ordner zu wechseln.</p>
+      </footer>
+      <section id="mention" aria-labelledby="mention-title" style="margin-top:1.25rem">
+        <h1 id="mention-title">Mention</h1>
+        <div class="grid-1col">
+          <div class="card">
+            <h2>Shopdateien erstellen (Excel + Kosatec)</h2>
+            <form action="/mention/shop-files" method="post" enctype="multipart/form-data">
+              <label>Excel (Mention) <input type="file" name="excel" accept=".xls,.xlsx" required></label>
+              <label>Bestand (Kosatec .txt/.csv) <input type="file" name="bestand" accept=".txt,.csv" required></label>
+              <button type="submit">Erzeugen & Herunterladen (ZIP)</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Bilder zum Shop Hochladen</h2>
+            <form action="/mention/upload-images" method="post" enctype="multipart/form-data">
+              <label>Artikelnummer <input type="text" name="artikelnummer" required></label>
+              <label>Bilder (JPG, mehrere möglich) <input type="file" name="images" accept=".jpg,.jpeg" multiple required></label>
+              <button type="submit">Hochladen & shopimage.csv herunterladen</button>
+            </form>
+            <p class="suggest">URL-Basis: <code>https://www.okaycomputer.de/media/templates/produktbilder/{artikelnummer}-{n}.jpg</code></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    (function(){
+      // Navigation aktiv markieren
+      function activateNav(hash){
+        const target = hash || '#transaktion';
+        document.querySelectorAll('.nav a').forEach(function(a){
+          const isActive = a.getAttribute('href') === target;
+          a.classList.toggle('is-active', !!isActive);
+        });
+      }
+      activateNav(location.hash);
+      window.addEventListener('hashchange', function(){ activateNav(location.hash); });
+      document.querySelectorAll('.nav a').forEach(function(a){
+        a.addEventListener('click', function(){
+          activateNav(a.getAttribute('href'));
+        });
+      });
+
+      function setActiveCard(cardEl){
+        document.querySelectorAll('.card').forEach(function(c){ c.classList.remove('is-active'); });
+        if (cardEl) cardEl.classList.add('is-active');
+      }
+      function lastMonthFolder() {
+        const now = new Date();
+        let y = now.getFullYear();
+        let m = now.getMonth(); // 0..11, aktueller Monat
+        if (m === 0) { y -= 1; m = 11; } else { m = m - 1; } // Vormonat
+        const mm = String(m + 1).padStart(2, '0');
+        return `${y}${mm}`;
+      }
+      function suggestionForFilename(name) {
+        if (!name) return "";
+        const lower = name.toLowerCase();
+        const month = lastMonthFolder();
+        const SEP = '\\';
+        if (lower.includes("okay")) {
+          return `O:${SEP}buchhaltung${SEP}berichte${SEP}${month}${SEP}sonstiges`;
+        }
+        if (lower.includes("zone") || lower.includes("best")) {
+          return `Z:${SEP}buchhaltung${SEP}berichte${SEP}${month}${SEP}sonstiges`;
+        }
+        return "";
+      }
+      function copyText(text, targetEl){
+        if (!text) return;
+        const done = () => {
+          if (targetEl){
+            targetEl.setAttribute('data-copied','1');
+            setTimeout(()=>targetEl.removeAttribute('data-copied'), 1200);
+          }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(done).catch(()=>fallback());
+        } else {
+          fallback();
+        }
+        function fallback(){
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch(e) {}
+          document.body.removeChild(ta);
+          done();
+        }
+      }
+      document.querySelectorAll('form input[type="file"]').forEach(function(inp){
+        const card = inp.closest('.card');
+        const target = card ? card.querySelector('.suggest-target') : null;
+        const btn = card ? card.querySelector('.copy-suggest') : null;
+        const form = card ? card.querySelector('form') : null;
+        const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+        const errorEl = card ? card.querySelector('.error') : null;
+        if (card){
+          card.addEventListener('click', function(){ setActiveCard(card); });
+        }
+        if (form){
+          form.addEventListener('focusin', function(){ setActiveCard(card); });
+        }
+        if (target && !target.textContent) {
+          target.textContent = '—';
+        }
+        function update() {
+          const file = inp.files && inp.files[0];
+          const s = file ? suggestionForFilename(file.name) : "";
+          if (target) target.textContent = s || '—';
+          if (btn) btn.disabled = !s;
+          // Automatisch kopieren nach Dateiauswahl (Nutzeraktion -> erlaubt)
+          if (s) copyText(s, target);
+          // aktive Karte hervorheben, wenn Datei gewählt
+          if (file) setActiveCard(card);
+          // Dateiname-Validierung
+          const required = form ? (form.getAttribute('data-required') || '').toLowerCase() : '';
+          const lower = file ? file.name.toLowerCase() : '';
+          const ok = required ? lower.includes(required) : true;
+          if (submitBtn) submitBtn.disabled = !ok;
+          if (errorEl) errorEl.textContent = ok ? '' : `Ungültige Datei: Dateiname muss '${required}' enthalten.`;
+        }
+        inp.addEventListener('change', update);
+        if (target){
+          target.title = 'Klicken zum Kopieren';
+          target.addEventListener('click', function(){
+            const text = target.textContent || '';
+            const clean = text.trim();
+            if (clean && clean !== '—') copyText(clean, target);
+          });
+          // Access per Enter/Space
+          target.setAttribute('tabindex', '0');
+          target.setAttribute('role', 'button');
+          target.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              const text = target.textContent || '';
+              const clean = text.trim();
+              if (clean && clean !== '—') copyText(clean, target);
+            }
+          });
+        }
+        if (btn){
+          btn.addEventListener('click', function(){
+            const text = target ? (target.textContent || '') : '';
+            const clean = text.trim();
+            if (clean && clean !== '—') copyText(clean, target);
+          });
+        }
+        if (form){
+          form.addEventListener('submit', function(){
+            const text = target ? (target.textContent || '') : '';
+            const clean = text.trim();
+            if (clean && clean !== '—') copyText(clean, target);
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
+
+

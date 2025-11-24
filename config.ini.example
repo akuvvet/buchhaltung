@@ -1,0 +1,10 @@
+[FTP]
+host = ftp.example.com
+user = myuser
+password = mypassword
+directory = /remote/path
+
+# Alternativ können Sie die folgenden Umgebungsvariablen setzen:
+# FTP_HOST, FTP_USER, FTP_PASS, FTP_DIR
+
+

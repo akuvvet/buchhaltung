@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mention</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;line-height:1.45;margin:1.5rem;background:#f7f7fb;color:#1b1b1f}
+    h1{font-size:1.4rem;margin-bottom:.8rem}
+    .layout{display:grid;grid-template-columns:220px 1fr;gap:1rem}
+    .sidebar{background:white;border:1px solid #e6e6ef;border-radius:10px;padding:.75rem;height:calc(100vh - 3rem);position:sticky;top:1.5rem}
+    .nav-title{font-size:.9rem;color:#666;margin:0 0 .5rem}
+    .nav{display:flex;flex-direction:column;gap:.25rem}
+    .nav a{display:block;text-decoration:none;color:#1b1b1f;padding:.5rem .6rem;border-radius:8px;border:1px solid transparent;font-size:.95rem}
+    .nav a:hover{background:#f3f6ff;border-color:#e1e7ff}
+    .nav a.is-active{background:#f0f6ff;border-color:#cfe1ff;color:#0b63c7;box-shadow:0 0 0 2px rgba(59,130,246,.1) inset}
+    .content{min-width:0}
+    .grid-1col{display:grid;gap:.75rem;grid-template-columns:minmax(260px, 720px)}
+    .card{background:white;border:1px solid #e6e6ef;border-radius:10px;padding:.75rem;transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease}
+    .card h2{font-size:1rem;margin:0 0 .4rem}
+    .card:hover{border-color:#cfd8ff}
+    .card:focus-within,
+    .card.is-active{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(59,130,246,.15);background:#f8fbff}
+    form{display:flex;flex-direction:column;gap:.4rem}
+    input[type=file], input[type=text]{padding:.4rem;border:1px solid #cfcfe6;border-radius:7px}
+    button{background:#3b82f6;color:white;border:none;padding:.5rem .8rem;border-radius:7px;cursor:pointer;font-size:.9rem}
+    button:hover{background:#2563eb}
+    footer{margin-top:2rem;color:#666;font-size:.9rem}
+    code{background:#f0f0f6;padding:.1rem .3rem;border-radius:4px}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="nav-title">Menü</div>
+      <nav class="nav">
+        <a href="/transaktion">Transaktion</a>
+        <a href="/mention" class="is-active">Mention</a>
+        <a href="/telematik">Telematik</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section id="mention" aria-labelledby="mention-title">
+        <h1 id="mention-title">Mention</h1>
+        <div class="grid-1col">
+          <div class="card">
+            <h2>Shopdateien erstellen (Excel + Kosatec)</h2>
+            <form action="/mention/shop-files" method="post" enctype="multipart/form-data">
+              <label>Excel (Mention) <input type="file" name="excel" accept=".xls,.xlsx" required></label>
+              <label>Bestand (Kosatec .txt/.csv) <input type="file" name="bestand" accept=".txt,.csv" required></label>
+              <button type="submit">Erzeugen & Herunterladen (ZIP)</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Bilder zum Shop hochladen</h2>
+            <form action="/mention/upload-images" method="post" enctype="multipart/form-data">
+              <label>Artikelnummer <input type="text" name="artikelnummer" required></label>
+              <label>Bilder (JPG, mehrere möglich) <input type="file" name="images" accept=".jpg,.jpeg" multiple required></label>
+              <button type="submit">Hochladen & shopimage.csv herunterladen</button>
+            </form>
+            <p class="suggest">URL-Basis: <code>https://www.okaycomputer.de/media/templates/produktbilder/{artikelnummer}-{n}.jpg</code></p>
+          </div>
+        </div>
+      </section>
+      <footer>
+        <p>Tipp: Für Produktion auf Windows können Sie die App mit <code>waitress</code> hosten (siehe README).</p>
+      </footer>
+    </main>
+  </div>
+  <script>
+    (function(){
+      function setActiveCard(cardEl){
+        document.querySelectorAll('.card').forEach(function(c){ c.classList.remove('is-active'); });
+        if (cardEl) cardEl.classList.add('is-active');
+      }
+      // Klick/Fokus/Eingabe markieren die aktive Karte
+      document.querySelectorAll('.card').forEach(function(card){
+        card.addEventListener('click', function(){ setActiveCard(card); });
+        const form = card.querySelector('form');
+        if (form){
+          form.addEventListener('focusin', function(){ setActiveCard(card); });
+          form.querySelectorAll('input,button,select,textarea').forEach(function(el){
+            el.addEventListener('change', function(){ setActiveCard(card); });
+            el.addEventListener('input', function(){ setActiveCard(card); });
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
+
+
