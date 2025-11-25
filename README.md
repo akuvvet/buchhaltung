@@ -49,3 +49,6 @@ Hinweise
 - Die alte Desktop-GUI in `online.py` bleibt unverändert; die Web-App erfüllt die gleichen Aufgaben im Browser.
 
 
+---zum starten der app über pm2
+pm2 restart ecosystem.config.js --update-env
+---

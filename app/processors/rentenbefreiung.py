@@ -43,6 +43,19 @@ def _fill_excel_and_export_pdf(
 	wb = load_workbook(filename=str(excel_path))
 	ws = wb.worksheets[0]
 
+	# Seitenränder auf 1,5 cm setzen (LibreOffice übernimmt diese beim PDF-Export)
+	CM_PER_INCH = 2.54
+	margin_in = 1.5 / CM_PER_INCH
+	try:
+		pm = ws.page_margins
+		pm.top = margin_in
+		pm.bottom = margin_in
+		pm.left = margin_in
+		pm.right = margin_in
+	except Exception:
+		# Falls nicht möglich, ohne Anpassung weiter
+		pass
+
 	# Einträge in vorgegebene Zellen
 	ws["C10"].value = familienname
 	ws["C10"].font = Font(bold=True)
