@@ -168,10 +168,10 @@ def create_app() -> Flask:
         beginn_befreiung = _parse_date_ddmmyyyy(beginn_befreiung_raw, allow_today_default=False)
 
         try:
-            # Lazy-Import, damit die App auch ohne pywin32 (z.B. Linux) startet
-            from app.processors.rentenbefreiung import export_rentenbefreiung_pdf  # type: ignore
+            # Lazy-Import (keine OS-spezifische Abhängigkeit mehr)
+            from app.processors.rentenbefreiung import export_rentenbefreiung_xlsx  # type: ignore
 
-            pdf_bytes, filename = export_rentenbefreiung_pdf(
+            xlsx_bytes, filename = export_rentenbefreiung_xlsx(
                 excel_bytes=excel_bytes,
                 familienname=familienname,
                 vorname=vorname,
@@ -181,16 +181,17 @@ def create_app() -> Flask:
                 beginn_befreiung=beginn_befreiung,
                 signature_bytes=signature_bytes,
             )
-        except RuntimeError as e:
-            abort(500, f"Rentenbefreiung ist auf diesem Server nicht verfügbar: {e}")
-        except ImportError as e:
-            abort(500, f"Rentenbefreiung benötigt Windows + Excel (pywin32). {e}")
         except ValueError as e:
             abort(400, str(e))
 
-        bio = BytesIO(pdf_bytes)
+        bio = BytesIO(xlsx_bytes)
         bio.seek(0)
-        return send_file(bio, mimetype="application/pdf", as_attachment=True, download_name=filename)
+        return send_file(
+            bio,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=filename
+        )
 
     # RoutenCalc entfernt
 

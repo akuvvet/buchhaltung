@@ -5,13 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple
 
-try:
-	import win32com.client as win32  # type: ignore
-	import pythoncom  # type: ignore
-except Exception as e:  # pragma: no cover
-	# Auf Windows ist pywin32 erforderlich, um Excel zu automatisieren.
-	# Die Route wird andernfalls mit einer klaren Fehlermeldung abbrechen.
-	raise RuntimeError("pywin32 (win32com) ist erforderlich, um Excel zu automatisieren.") from e
+from io import BytesIO
+
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.styles import Font
 
 
 DATE_FMT = "%d.%m.%Y"
@@ -38,93 +36,61 @@ def _fill_excel_and_export_pdf(
 	aktuelles_datum: str,
 	beginn_befreiung: str,
 	signature_path: Optional[Path] = None,
-) -> None:
-	excel = None
-	wb = None
-	try:
-		# COM in diesem (Request-)Thread initialisieren
-		pythoncom.CoInitialize()
+) -> bytes:
+	# Workbook laden
+	wb = load_workbook(filename=str(excel_path))
+	ws = wb.worksheets[0]
 
-		excel = win32.gencache.EnsureDispatch("Excel.Application")
-		excel.Visible = False
-		excel.DisplayAlerts = False
-		wb = excel.Workbooks.Open(str(excel_path))
-		ws = wb.Worksheets(1)
+	# Einträge in vorgegebene Zellen
+	ws["C10"].value = familienname
+	ws["C10"].font = Font(bold=True)
+	ws["C12"].value = vorname
+	ws["C12"].font = Font(bold=True)
+	ws["C14"].value = rvnr
+	ws["C14"].font = Font(bold=True)
 
-		ws.Range("C10").Value = familienname
-		ws.Range("C10").Font.Bold = True
-		ws.Range("C12").Value = vorname
-		ws.Range("C12").Font.Bold = True
-		ws.Range("C14").Value = rvnr
-		ws.Range("C14").Font.Bold = True
+	ort_komma_datum = f"{ort}, {aktuelles_datum}"
+	ws["B26"].value = ort_komma_datum
+	ws["B26"].font = Font(bold=True)
+	ws["B40"].value = ort_komma_datum
+	ws["B40"].font = Font(bold=True)
 
-		ort_komma_datum = f"{ort}, {aktuelles_datum}"
-		ws.Range("B26").Value = ort_komma_datum
-		ws.Range("B26").Font.Bold = True
-		ws.Range("B40").Value = ort_komma_datum
-		ws.Range("B40").Font.Bold = True
+	ws["E36"].value = aktuelles_datum
+	ws["E36"].font = Font(bold=True)
+	ws["D38"].value = beginn_befreiung
+	ws["D38"].font = Font(bold=True)
 
-		ws.Range("E36").Value = aktuelles_datum
-		ws.Range("E36").Font.Bold = True
-		ws.Range("D38").Value = beginn_befreiung
-		ws.Range("D38").Font.Bold = True
-
-		if signature_path is not None and signature_path.exists():
-			try:
-				target_cell = ws.Range("D27")
-				cell_left = target_cell.Left
-				cell_top = target_cell.Top
-				pic = ws.Pictures().Insert(str(signature_path))
-				# Maximalmaße: 5 cm Breite, 2 cm Höhe (in Punkte umrechnen und proportional skalieren)
-				POINTS_PER_INCH = 72.0
-				CM_PER_INCH = 2.54
-				max_width_pt = (5.0 / CM_PER_INCH) * POINTS_PER_INCH
-				max_height_pt = (2.0 / CM_PER_INCH) * POINTS_PER_INCH
-				try:
-					cur_w = float(pic.Width)
-					cur_h = float(pic.Height)
-					if cur_w > 0.0 and cur_h > 0.0:
-						scale = min(max_width_pt / cur_w, max_height_pt / cur_h, 1.0)
-						if scale < 1.0:
-							pic.Width = cur_w * scale
-							pic.Height = cur_h * scale
-				except Exception:
-					# Falls Größenanpassung fehlschlägt, ohne Skalierung fortfahren
-					pass
-				pic.Left = cell_left
-				new_top = cell_top - pic.Height
-				pic.Top = new_top if new_top > 0 else 0
-			except Exception:
-				# Wenn Einfügen scheitert, einfach ohne Unterschrift fortfahren
-				pass
-
-		ws.ExportAsFixedFormat(
-			Type=0,  # xlTypePDF
-			Filename=str(pdf_path),
-			Quality=0,  # xlQualityStandard
-			IncludeDocProperties=True,
-			IgnorePrintAreas=False,
-			OpenAfterPublish=False,
-		)
-	finally:
-		if wb is not None:
-			try:
-				wb.Close(SaveChanges=False)
-			except Exception:
-				pass
-		if excel is not None:
-			try:
-				excel.Quit()
-			except Exception:
-				pass
-		# COM wieder freigeben
+	# Unterschriftsbild optional bei Zelle D27 verankern
+	if signature_path is not None and signature_path.exists():
 		try:
-			pythoncom.CoUninitialize()
+			img = XLImage(str(signature_path))
+			# Maximal 5 cm Breite und 2 cm Höhe, proportional
+			# Umrechnung: 1 inch = 2.54 cm, 96 px/inch
+			DPI = 96.0
+			max_w_px = int((5.0 / 2.54) * DPI)
+			max_h_px = int((2.0 / 2.54) * DPI)
+			cur_w = int(getattr(img, "width", max_w_px) or max_w_px)
+			cur_h = int(getattr(img, "height", max_h_px) or max_h_px)
+			if cur_w > 0 and cur_h > 0:
+				scale = min(max_w_px / cur_w, max_h_px / cur_h, 1.0)
+				if scale < 1.0:
+					img.width = int(cur_w * scale)
+					img.height = int(cur_h * scale)
+			# Verankerung an D27
+			img.anchor = "D27"
+			ws.add_image(img)
 		except Exception:
+			# Wenn Bild fehlschlägt, weiter ohne Bild
 			pass
 
+	# In Bytes speichern (xlsx)
+	bio = BytesIO()
+	wb.save(bio)
+	bio.seek(0)
+	return bio.getvalue()
 
-def export_rentenbefreiung_pdf(
+
+def export_rentenbefreiung_xlsx(
 	excel_bytes: bytes,
 	familienname: str,
 	vorname: str,
@@ -135,7 +101,7 @@ def export_rentenbefreiung_pdf(
 	signature_bytes: Optional[bytes] = None,
 ) -> Tuple[bytes, str]:
 	"""
-	Nimmt das Excel-Template als Bytes entgegen, befüllt es per COM und liefert PDF-Bytes zurück.
+	Nimmt das Excel-Template als Bytes entgegen, befüllt es per openpyxl und liefert XLSX-Bytes zurück.
 	"""
 	familienname_clean = (familienname or "").strip()
 	vorname_clean = (vorname or "").strip()
@@ -152,16 +118,14 @@ def export_rentenbefreiung_pdf(
 	with TemporaryDirectory(prefix="rentenbefreiung_") as tmpdir:
 		tmp_dir = Path(tmpdir)
 		excel_path = tmp_dir / "vorlage.xlsx"
-		pdf_path = tmp_dir / "ausgabe.pdf"
 		excel_path.write_bytes(excel_bytes)
 		signature_path: Optional[Path] = None
 		if signature_bytes:
 			signature_path = tmp_dir / "signature.png"
 			signature_path.write_bytes(signature_bytes)
 
-		_fill_excel_and_export_pdf(
+		result_xlsx_bytes = _fill_excel_and_export_pdf(
 			excel_path=excel_path,
-			pdf_path=pdf_path,
 			familienname=familienname_clean,
 			vorname=vorname_clean,
 			rvnr=(rvnr or "").strip(),
@@ -171,9 +135,7 @@ def export_rentenbefreiung_pdf(
 			signature_path=signature_path,
 		)
 
-		pdf_bytes = pdf_path.read_bytes()
-
-		filename = f"Rentenbefreiung_{familienname_clean}_{vorname_clean}.pdf"
-		return pdf_bytes, filename
+		filename = f"Rentenbefreiung_{familienname_clean}_{vorname_clean}.xlsx"
+		return result_xlsx_bytes, filename
 
 
