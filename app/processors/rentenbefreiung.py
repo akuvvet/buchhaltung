@@ -13,6 +13,7 @@ from openpyxl.styles import Font
 import subprocess
 import shutil
 import os
+from openpyxl.worksheet.properties import PageSetupProperties
 
 
 DATE_FMT = "%d.%m.%Y"
@@ -54,6 +55,15 @@ def _fill_excel_and_export_pdf(
 		pm.right = margin_in
 	except Exception:
 		# Falls nicht möglich, ohne Anpassung weiter
+		pass
+
+	# Auf eine Seite skalieren (Breite/Höhe) und Ausrichtung setzen
+	try:
+		ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+		ws.page_setup.fitToWidth = 1
+		ws.page_setup.fitToHeight = 1
+		ws.page_setup.orientation = "portrait"
+	except Exception:
 		pass
 
 	# Einträge in vorgegebene Zellen
