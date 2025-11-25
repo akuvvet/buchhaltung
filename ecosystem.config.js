@@ -1,7 +1,7 @@
 module.exports = {
   env: [{
     PORT: "5003",
-    SOFFICE_PATH: "/usr/lib/libreoffice/program/soffice"
+    SOFFICE_PATH: "/usr/lib/libreoffice/program/soffice" // oder /usr/bin/soffice bzw. /snap/bin/libreoffice
   }],
     apps: [{
       name: "okaytool",
