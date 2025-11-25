@@ -181,6 +181,8 @@ def create_app() -> Flask:
                 beginn_befreiung=beginn_befreiung,
                 signature_bytes=signature_bytes,
             )
+        except RuntimeError as e:
+            abort(500, str(e))
         except ValueError as e:
             abort(400, str(e))
 

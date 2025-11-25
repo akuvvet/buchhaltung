@@ -94,9 +94,8 @@ def _fill_excel_and_export_pdf(
 			# Verankerung an D27
 			img.anchor = "D27"
 			ws.add_image(img)
-		except Exception:
-			# Wenn Bild fehlschlägt, weiter ohne Bild
-			pass
+		except Exception as e:
+			raise RuntimeError(f"Unterschriftsbild konnte nicht eingefügt werden: {e}")
 
 	# In Bytes speichern (xlsx)
 	bio = BytesIO()
