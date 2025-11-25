@@ -14,6 +14,9 @@ import subprocess
 import shutil
 import os
 from openpyxl.worksheet.properties import PageSetupProperties
+from openpyxl.utils.cell import coordinate_to_tuple
+from openpyxl.utils import column_index_from_string
+from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
 
 
 DATE_FMT = "%d.%m.%Y"
@@ -101,8 +104,21 @@ def _fill_excel_and_export_pdf(
 				if scale < 1.0:
 					img.width = int(cur_w * scale)
 					img.height = int(cur_h * scale)
-			# Verankerung an D27
-			img.anchor = "D27"
+			# Verankerung an D27, aber um 1 cm nach oben verschieben
+			try:
+				target = "D27"
+				row, col = coordinate_to_tuple(target)  # (row, col) 1-based
+				col_zero = col - 1
+				row_zero = row - 1
+				# 1 cm in EMUs
+				EMU_PER_INCH = 914400
+				CM_PER_INCH = 2.54
+				offset_up = int(EMU_PER_INCH / CM_PER_INCH)  # 1 cm
+				marker = AnchorMarker(col=col_zero, colOff=0, row=row_zero, rowOff=-offset_up)
+				img.anchor = OneCellAnchor(_from=marker, ext=None)
+			except Exception:
+				# Fallback: eine Zeile höher anheften
+				img.anchor = "D26"
 			ws.add_image(img)
 		except Exception as e:
 			raise RuntimeError(f"Unterschriftsbild konnte nicht eingefügt werden: {e}")
