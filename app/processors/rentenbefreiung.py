@@ -28,7 +28,6 @@ def parse_date_ddmmyyyy(value: str, *, allow_today_default: bool = False) -> str
 
 def _fill_excel_and_export_pdf(
 	excel_path: Path,
-	pdf_path: Path,
 	familienname: str,
 	vorname: str,
 	rvnr: str,
