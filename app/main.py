@@ -9,7 +9,6 @@ from time import time
 from app.processors.amazon import process_amazon_csv
 from app.processors.ebay import process_ebay_csv
 from app.processors.kaufland import process_kaufland_csv
-from app.processors.rentenbefreiung import export_rentenbefreiung_pdf, parse_date_ddmmyyyy
 from app.processors.mention_ausgang import process_mention_ausgang_excel
 from app.processors.mention_eingang import process_mention_eingang_excel
 from app.processors.sale_ausgang import process_sale_ausgang_csv
@@ -138,6 +137,17 @@ def create_app() -> Flask:
     @app.post("/rentenbefreiung/process")
     @login_required
     def rentenbefreiung_process():
+        # Lokale Datumsvalidierung, um Importprobleme auf Linux zu vermeiden
+        def _parse_date_ddmmyyyy(value: str, allow_today_default: bool = False) -> str:
+            val = (value or "").strip()
+            if not val and allow_today_default:
+                return datetime.today().strftime("%d.%m.%Y")
+            try:
+                dt = datetime.strptime(val, "%d.%m.%Y")
+                return dt.strftime("%d.%m.%Y")
+            except ValueError:
+                abort(400, "Bitte Datum im Format TT.MM.JJJJ angeben (z. B. 25.11.2025).")
+
         familienname = (request.form.get("familienname") or "").strip()
         vorname = (request.form.get("vorname") or "").strip()
         rvnr = (request.form.get("rvnr") or "").strip()
@@ -154,13 +164,13 @@ def create_app() -> Flask:
         signature_bytes = signature_file.read() if signature_file and signature_file.filename else None
 
         # Validierung/Normalisierung der Datumsangaben
-        try:
-            aktuelles_datum = parse_date_ddmmyyyy(aktuelles_datum_raw, allow_today_default=True)
-            beginn_befreiung = parse_date_ddmmyyyy(beginn_befreiung_raw, allow_today_default=False)
-        except ValueError as e:
-            abort(400, str(e))
+        aktuelles_datum = _parse_date_ddmmyyyy(aktuelles_datum_raw, allow_today_default=True)
+        beginn_befreiung = _parse_date_ddmmyyyy(beginn_befreiung_raw, allow_today_default=False)
 
         try:
+            # Lazy-Import, damit die App auch ohne pywin32 (z.B. Linux) startet
+            from app.processors.rentenbefreiung import export_rentenbefreiung_pdf  # type: ignore
+
             pdf_bytes, filename = export_rentenbefreiung_pdf(
                 excel_bytes=excel_bytes,
                 familienname=familienname,
@@ -172,7 +182,9 @@ def create_app() -> Flask:
                 signature_bytes=signature_bytes,
             )
         except RuntimeError as e:
-            abort(500, str(e))
+            abort(500, f"Rentenbefreiung ist auf diesem Server nicht verfügbar: {e}")
+        except ImportError as e:
+            abort(500, f"Rentenbefreiung benötigt Windows + Excel (pywin32). {e}")
         except ValueError as e:
             abort(400, str(e))
 
