@@ -10,6 +10,8 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Font
+import subprocess
+import shutil
 
 
 DATE_FMT = "%d.%m.%Y"
@@ -136,5 +138,72 @@ def export_rentenbefreiung_xlsx(
 
 		filename = f"Rentenbefreiung_{familienname_clean}_{vorname_clean}.xlsx"
 		return result_xlsx_bytes, filename
+
+
+def export_rentenbefreiung_pdf(
+	excel_bytes: bytes,
+	familienname: str,
+	vorname: str,
+	rvnr: str,
+	ort: str,
+	aktuelles_datum: str,
+	beginn_befreiung: str,
+	signature_bytes: Optional[bytes] = None,
+) -> Tuple[bytes, str]:
+	"""
+	Erzeugt zunächst eine ausgefüllte XLSX-Datei (openpyxl) und konvertiert diese anschließend
+	mittels LibreOffice (soffice --headless) nach PDF. Erfordert, dass LibreOffice/soffice
+	auf dem Server installiert ist.
+	"""
+	# Zuerst XLSX erzeugen
+	xlsx_bytes, _xlsx_name = export_rentenbefreiung_xlsx(
+		excel_bytes=excel_bytes,
+		familienname=familienname,
+		vorname=vorname,
+		rvnr=rvnr,
+		ort=ort,
+		aktuelles_datum=aktuelles_datum,
+		beginn_befreiung=beginn_befreiung,
+		signature_bytes=signature_bytes,
+	)
+
+	# Pfad zu soffice finden
+	soffice = shutil.which("soffice") or shutil.which("libreoffice") or shutil.which("lowriter")
+	if not soffice:
+		raise RuntimeError("LibreOffice (soffice) nicht gefunden. Bitte installieren, um PDF zu erzeugen.")
+
+	with TemporaryDirectory(prefix="rentenbefreiung_pdf_") as tmpdir:
+		tmp_dir = Path(tmpdir)
+		in_xlsx = tmp_dir / "rentenbefreiung.xlsx"
+		out_dir = tmp_dir
+		in_xlsx.write_bytes(xlsx_bytes)
+
+		# Nach PDF konvertieren
+		cmd = [
+			soffice,
+			"--headless",
+			"--convert-to",
+			"pdf",
+			"--outdir",
+			str(out_dir),
+			str(in_xlsx),
+		]
+		res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+		if res.returncode != 0:
+			raise RuntimeError(f"LibreOffice-Konvertierung fehlgeschlagen: {res.stderr or res.stdout}")
+
+		out_pdf = out_dir / "rentenbefreiung.pdf"
+		if not out_pdf.exists():
+			# LibreOffice nutzt normalerweise denselben Basenamen
+			# Fallback: irgendeine erzeugte PDF nehmen
+			candidates = list(out_dir.glob("*.pdf"))
+			if not candidates:
+				raise RuntimeError("PDF nicht erzeugt.")
+			out_pdf = candidates[0]
+
+		pdf_bytes = out_pdf.read_bytes()
+
+		filename = f"Rentenbefreiung_{(familienname or '').strip()}_{(vorname or '').strip()}.pdf"
+		return pdf_bytes, filename
 
 

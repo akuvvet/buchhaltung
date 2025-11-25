@@ -168,10 +168,10 @@ def create_app() -> Flask:
         beginn_befreiung = _parse_date_ddmmyyyy(beginn_befreiung_raw, allow_today_default=False)
 
         try:
-            # Lazy-Import (keine OS-spezifische Abhängigkeit mehr)
-            from app.processors.rentenbefreiung import export_rentenbefreiung_xlsx  # type: ignore
+            # Lazy-Import
+            from app.processors.rentenbefreiung import export_rentenbefreiung_pdf  # type: ignore
 
-            xlsx_bytes, filename = export_rentenbefreiung_xlsx(
+            pdf_bytes, filename = export_rentenbefreiung_pdf(
                 excel_bytes=excel_bytes,
                 familienname=familienname,
                 vorname=vorname,
@@ -184,11 +184,11 @@ def create_app() -> Flask:
         except ValueError as e:
             abort(400, str(e))
 
-        bio = BytesIO(xlsx_bytes)
+        bio = BytesIO(pdf_bytes)
         bio.seek(0)
         return send_file(
             bio,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            mimetype="application/pdf",
             as_attachment=True,
             download_name=filename
         )
