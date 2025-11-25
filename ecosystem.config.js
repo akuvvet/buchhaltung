@@ -1,4 +1,8 @@
 module.exports = {
+  env: [{
+    PORT: "5003",
+    SOFFICE_PATH: "/usr/lib/libreoffice/program/soffice"
+  }],
     apps: [{
       name: "okaytool",
       cwd: "/root/klickundfertig/buchhaltung/buchhaltung",
@@ -8,3 +12,4 @@ module.exports = {
       env: { PORT: "5003" }
     }]
   };
+  
