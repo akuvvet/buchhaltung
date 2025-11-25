@@ -12,6 +12,7 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Font
 import subprocess
 import shutil
+import os
 
 
 DATE_FMT = "%d.%m.%Y"
@@ -168,9 +169,25 @@ def export_rentenbefreiung_pdf(
 	)
 
 	# Pfad zu soffice finden
-	soffice = shutil.which("soffice") or shutil.which("libreoffice") or shutil.which("lowriter")
+	candidate_env = os.environ.get("SOFFICE_PATH")
+	soffice = None
+	if candidate_env and Path(candidate_env).exists():
+		soffice = candidate_env
 	if not soffice:
-		raise RuntimeError("LibreOffice (soffice) nicht gefunden. Bitte installieren, um PDF zu erzeugen.")
+		soffice = (
+			shutil.which("soffice")
+			or shutil.which("libreoffice")
+			or shutil.which("lowriter")
+			or ("/usr/bin/soffice" if Path("/usr/bin/soffice").exists() else None)
+			or ("/usr/bin/libreoffice" if Path("/usr/bin/libreoffice").exists() else None)
+			or ("/snap/bin/libreoffice" if Path("/snap/bin/libreoffice").exists() else None)
+			or ("/usr/lib/libreoffice/program/soffice" if Path("/usr/lib/libreoffice/program/soffice").exists() else None)
+		)
+	if not soffice:
+		raise RuntimeError(
+			"LibreOffice (soffice) nicht gefunden. Bitte installieren (z. B. apt install libreoffice) "
+			"oder Umgebungsvariable SOFFICE_PATH auf den absoluten Pfad setzen."
+		)
 
 	with TemporaryDirectory(prefix="rentenbefreiung_pdf_") as tmpdir:
 		tmp_dir = Path(tmpdir)
