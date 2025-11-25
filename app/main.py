@@ -9,6 +9,7 @@ from time import time
 from app.processors.amazon import process_amazon_csv
 from app.processors.ebay import process_ebay_csv
 from app.processors.kaufland import process_kaufland_csv
+from app.processors.rentenbefreiung import export_rentenbefreiung_pdf, parse_date_ddmmyyyy
 from app.processors.mention_ausgang import process_mention_ausgang_excel
 from app.processors.mention_eingang import process_mention_eingang_excel
 from app.processors.sale_ausgang import process_sale_ausgang_csv
@@ -128,6 +129,56 @@ def create_app() -> Flask:
     @login_required
     def telematik_page():
         return render_template("telematik.html")
+
+    @app.get("/rentenbefreiung")
+    @login_required
+    def rentenbefreiung_page():
+        return render_template("rentenbefreiung.html")
+
+    @app.post("/rentenbefreiung/process")
+    @login_required
+    def rentenbefreiung_process():
+        familienname = (request.form.get("familienname") or "").strip()
+        vorname = (request.form.get("vorname") or "").strip()
+        rvnr = (request.form.get("rvnr") or "").strip()
+        ort = (request.form.get("ort") or "").strip() or "Solingen"
+        aktuelles_datum_raw = (request.form.get("aktuelles_datum") or "").strip()
+        beginn_befreiung_raw = (request.form.get("beginn_befreiung") or "").strip()
+
+        excel_file = request.files.get("excel")
+        if not excel_file or not (excel_file.filename or "").lower().endswith((".xlsx", ".xlsm", ".xls")):
+            abort(400, "Bitte eine Excel-Vorlage (.xlsx/.xlsm/.xls) hochladen.")
+        excel_bytes = excel_file.read()
+
+        signature_file = request.files.get("signature")
+        signature_bytes = signature_file.read() if signature_file and signature_file.filename else None
+
+        # Validierung/Normalisierung der Datumsangaben
+        try:
+            aktuelles_datum = parse_date_ddmmyyyy(aktuelles_datum_raw, allow_today_default=True)
+            beginn_befreiung = parse_date_ddmmyyyy(beginn_befreiung_raw, allow_today_default=False)
+        except ValueError as e:
+            abort(400, str(e))
+
+        try:
+            pdf_bytes, filename = export_rentenbefreiung_pdf(
+                excel_bytes=excel_bytes,
+                familienname=familienname,
+                vorname=vorname,
+                rvnr=rvnr,
+                ort=ort,
+                aktuelles_datum=aktuelles_datum,
+                beginn_befreiung=beginn_befreiung,
+                signature_bytes=signature_bytes,
+            )
+        except RuntimeError as e:
+            abort(500, str(e))
+        except ValueError as e:
+            abort(400, str(e))
+
+        bio = BytesIO(pdf_bytes)
+        bio.seek(0)
+        return send_file(bio, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
     # RoutenCalc entfernt
 

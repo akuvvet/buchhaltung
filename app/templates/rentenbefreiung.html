@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mention</title>
+  <title>Rentenbefreiung</title>
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;line-height:1.45;margin:1.5rem;background:#f7f7fb;color:#1b1b1f}
     h1{font-size:1.4rem;margin-bottom:.8rem}
@@ -21,12 +21,13 @@
     .card:hover{border-color:#cfd8ff}
     .card:focus-within,
     .card.is-active{border-color:#93c5fd;box-shadow:0 0 0 3px rgba(59,130,246,.15);background:#f8fbff}
-    form{display:flex;flex-direction:column;gap:.4rem}
-    input[type=file], input[type=text]{padding:.4rem;border:1px solid #cfcfe6;border-radius:7px}
-    button{background:#3b82f6;color:white;border:none;padding:.5rem .8rem;border-radius:7px;cursor:pointer;font-size:.9rem}
+    form{display:flex;flex-direction:column;gap:.5rem}
+    label{font-size:.92rem;color:#333}
+    input[type=text], input[type=file]{padding:.45rem .5rem;border:1px solid #cfcfe6;border-radius:7px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    button{background:#3b82f6;color:white;border:none;padding:.55rem .85rem;border-radius:7px;cursor:pointer;font-size:.95rem}
     button:hover{background:#2563eb}
     footer{margin-top:2rem;color:#666;font-size:.9rem}
-    code{background:#f0f0f6;padding:.1rem .3rem;border-radius:4px}
   </style>
 </head>
 <body>
@@ -35,37 +36,56 @@
       <div class="nav-title">Menü</div>
       <nav class="nav">
         <a href="/transaktion">Transaktion</a>
-        <a href="/mention" class="is-active">Mention</a>
+        <a href="/mention">Mention</a>
         <a href="/telematik">Telematik</a>
-        <a href="/rentenbefreiung">Rentenbefreiung</a>
+        <a href="/rentenbefreiung" class="is-active">Rentenbefreiung</a>
         <a href="/logout">Ausloggen</a>
       </nav>
     </aside>
     <main class="content">
-      <section id="mention" aria-labelledby="mention-title">
-        <h1 id="mention-title">Mention</h1>
+      <section aria-labelledby="rentenbefreiung-title">
+        <h1 id="rentenbefreiung-title">Rentenbefreiung: PDF aus Excel-Vorlage erzeugen</h1>
         <div class="grid-1col">
           <div class="card">
-            <h2>Shopdateien erstellen (Excel + Kosatec)</h2>
-            <form action="/mention/shop-files" method="post" enctype="multipart/form-data">
-              <label>Excel (Mention) <input type="file" name="excel" accept=".xls,.xlsx" required></label>
-              <label>Bestand (Kosatec .txt/.csv) <input type="file" name="bestand" accept=".txt,.csv" required></label>
-              <button type="submit">Erzeugen & Herunterladen (ZIP)</button>
+            <h2>Eingaben</h2>
+            <form action="/rentenbefreiung/process" method="post" enctype="multipart/form-data">
+              <div class="row">
+                <label>Familienname
+                  <input type="text" name="familienname" required>
+                </label>
+                <label>Vorname
+                  <input type="text" name="vorname" required>
+                </label>
+              </div>
+              <div class="row">
+                <label>Rentenversicherungsnr
+                  <input type="text" name="rvnr" required>
+                </label>
+                <label>Ort
+                  <input type="text" name="ort" value="Solingen">
+                </label>
+              </div>
+              <div class="row">
+                <label>Aktuelles Datum (TT.MM.JJJJ, leer = heute)
+                  <input type="text" name="aktuelles_datum" placeholder="TT.MM.JJJJ">
+                </label>
+                <label>Befreiung beginnt am (TT.MM.JJJJ)
+                  <input type="text" name="beginn_befreiung" placeholder="TT.MM.JJJJ" required>
+                </label>
+              </div>
+              <label>Excel-Vorlage (.xlsx/.xlsm/.xls)
+                <input type="file" name="excel" accept=".xlsx,.xlsm,.xls" required>
+              </label>
+              <label>Unterschriftsbild (optional)
+                <input type="file" name="signature" accept=".png,.jpg,.jpeg,.bmp,.gif">
+              </label>
+              <button type="submit">Erzeugen & Herunterladen (PDF)</button>
             </form>
-          </div>
-          <div class="card">
-            <h2>Bilder zum Shop hochladen</h2>
-            <form action="/mention/upload-images" method="post" enctype="multipart/form-data">
-              <label>Artikelnummer <input type="text" name="artikelnummer" required></label>
-              <label>Bilder (JPG, mehrere möglich) <input type="file" name="images" accept=".jpg,.jpeg" multiple required></label>
-              <button type="submit">Hochladen & shopimage.csv herunterladen</button>
-            </form>
-            <p class="suggest">URL-Basis: <code>https://www.okaycomputer.de/media/templates/produktbilder/{artikelnummer}-{n}.jpg</code></p>
           </div>
         </div>
       </section>
       <footer>
-        <p>Tipp: Für Produktion auf Windows können Sie die App mit <code>waitress</code> hosten (siehe README).</p>
+        <p>Hinweis: Das PDF wird im Browser heruntergeladen. Die Excel-Datei wird auf dem Server nicht gespeichert.</p>
       </footer>
     </main>
   </div>
@@ -75,16 +95,11 @@
         document.querySelectorAll('.card').forEach(function(c){ c.classList.remove('is-active'); });
         if (cardEl) cardEl.classList.add('is-active');
       }
-      // Klick/Fokus/Eingabe markieren die aktive Karte
       document.querySelectorAll('.card').forEach(function(card){
         card.addEventListener('click', function(){ setActiveCard(card); });
         const form = card.querySelector('form');
         if (form){
           form.addEventListener('focusin', function(){ setActiveCard(card); });
-          form.querySelectorAll('input,button,select,textarea').forEach(function(el){
-            el.addEventListener('change', function(){ setActiveCard(card); });
-            el.addEventListener('input', function(){ setActiveCard(card); });
-          });
         }
       });
     })();
